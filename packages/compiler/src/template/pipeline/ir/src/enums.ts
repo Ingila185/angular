@@ -575,6 +575,7 @@ export enum DeferTriggerKind {
   Hover,
   Interaction,
   Viewport,
+  Never,
 }
 
 /**
@@ -590,4 +591,13 @@ export enum TemplateKind {
   NgTemplate,
   Structural,
   Block,
+}
+
+/**
+ * Kinds of modifiers for a defer block.
+ */
+export const enum DeferOpModifierKind {
+  NONE = 'none',
+  PREFETCH = 'prefetch',
+  HYDRATE = 'hydrate',
 }

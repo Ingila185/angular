@@ -52,7 +52,6 @@ export class SignalInputMigration extends TsurgeComplexMigration<
   // Override the default ngtsc program creation, to add extra flags.
   override createProgram(tsconfigAbsPath: string, fs?: FileSystem): BaseProgramInfo {
     return createNgtscProgram(tsconfigAbsPath, fs, {
-      _enableTemplateTypeChecker: true,
       _compilePoisonedComponents: true,
       // We want to migrate non-exported classes too.
       compileNonExportedClasses: true,
@@ -99,7 +98,7 @@ export class SignalInputMigration extends TsurgeComplexMigration<
     filterInputsViaConfig(result, knownInputs, this.config);
 
     this.config.reportProgressFn?.(40, 'Checking inheritance..');
-    pass4__checkInheritanceOfInputs(host, inheritanceGraph, metaRegistry, knownInputs);
+    pass4__checkInheritanceOfInputs(inheritanceGraph, metaRegistry, knownInputs);
     if (this.config.bestEffortMode) {
       filterIncompatibilitiesForBestEffortMode(knownInputs);
     }
@@ -159,12 +158,7 @@ export class SignalInputMigration extends TsurgeComplexMigration<
       populateKnownInputsFromGlobalData(knownInputs, globalMetadata);
 
       filterInputsViaConfig(result, knownInputs, this.config);
-      pass4__checkInheritanceOfInputs(
-        host,
-        inheritanceGraph,
-        analysisDeps.metaRegistry,
-        knownInputs,
-      );
+      pass4__checkInheritanceOfInputs(inheritanceGraph, analysisDeps.metaRegistry, knownInputs);
       if (this.config.bestEffortMode) {
         filterIncompatibilitiesForBestEffortMode(knownInputs);
       }
@@ -195,7 +189,7 @@ function filterInputsViaConfig(
   for (const input of knownInputs.knownInputIds.values()) {
     if (!config.shouldMigrateInput(input)) {
       skippedInputs.add(input.descriptor.key);
-      knownInputs.markInputAsIncompatible(input.descriptor, {
+      knownInputs.markFieldIncompatible(input.descriptor, {
         context: null,
         reason: InputIncompatibilityReason.SkippedViaConfigFilter,
       });

@@ -2586,6 +2586,12 @@ class Scope {
   private appendDeferredBlock(block: TmplAstDeferredBlock): void {
     this.appendDeferredTriggers(block, block.triggers);
     this.appendDeferredTriggers(block, block.prefetchTriggers);
+
+    // Only the `when` hydration trigger needs to be checked.
+    if (block.hydrateTriggers.when) {
+      this.opQueue.push(new TcbExpressionOp(this.tcb, this, block.hydrateTriggers.when.value));
+    }
+
     this.appendChildren(block);
 
     if (block.placeholder !== null) {

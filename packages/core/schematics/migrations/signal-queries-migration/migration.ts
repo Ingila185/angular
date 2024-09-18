@@ -22,7 +22,7 @@ import {applyImportManagerChanges} from '../../utils/tsurge/helpers/apply_import
 import {ClassFieldDescriptor} from '../signal-migration/src';
 import {GroupedTsAstVisitor} from '../signal-migration/src/utils/grouped_ts_ast_visitor';
 import {computeReplacementsToMigrateQuery} from './convert_query_property';
-import {extractSourceQueryDefinition} from './identify_queries';
+import {ExtractedQuery, extractSourceQueryDefinition} from './identify_queries';
 import {queryFunctionNameToDecorator} from './query_api_names';
 import {ClassFieldUniqueKey} from '../signal-migration/src/passes/reference_resolution/known_fields';
 import {KnownQueries} from './known_queries';
@@ -39,6 +39,9 @@ import {migrateHostBindings} from '../signal-migration/src/passes/reference_migr
 import {migrateTypeScriptTypeReferences} from '../signal-migration/src/passes/reference_migration/migrate_ts_type_references';
 import {ReferenceResult} from '../signal-migration/src/passes/reference_resolution/reference_result';
 import {getClassFieldDescriptorForSymbol, getUniqueIDForClassProperty} from './field_tracking';
+import {checkIncompatiblePatterns} from '../signal-migration/src/passes/problematic_patterns/common_incompatible_patterns';
+import {InheritanceGraph} from '../signal-migration/src/utils/inheritance_graph';
+import {checkInheritanceOfKnownFields} from '../signal-migration/src/passes/problematic_patterns/check_inheritance';
 
 // TODO: Consider re-using inheritance logic from input migration
 // TODO: Consider re-using problematic pattern recognition logic from input migration
@@ -56,6 +59,9 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
     assert(info.ngCompiler !== null, 'Expected queries migration to have an Angular program.');
     // TODO: This stage for this migration doesn't necessarily need a full
     // compilation unit program.
+
+    // Pre-Analyze the program and get access to the template type checker.
+    const {templateTypeChecker} = await info.ngCompiler['ensureAnalyzed']();
 
     const {sourceFiles, program} = info;
     const checker = program.getTypeChecker();
@@ -82,14 +88,14 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
         reflector,
         info.ngCompiler['resourceManager'],
         evaluator,
-        info.ngCompiler.getTemplateTypeChecker(),
+        templateTypeChecker,
         // Eager, rather expensive tracking of all references.
         // We don't know yet if something refers to a different query or not, so we
         // eagerly detect such and later filter those problematic references that
         // turned out to refer to queries.
         // TODO: Consider skipping this extra work when running in non-batch mode.
         {
-          shouldTrackReferencesToClass: (_class) => false,
+          shouldTrackClassReference: (_class) => false,
           attemptRetrieveDescriptorFromSymbol: (s) => getClassFieldDescriptorForSymbol(s, info),
           fieldNamesToConsiderForReferenceLookup: null,
         },
@@ -140,6 +146,8 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
   ): Promise<Replacement[]> {
     assert(info.ngCompiler !== null, 'Expected queries migration to have an Angular program.');
 
+    // Pre-Analyze the program and get access to the template type checker.
+    const {templateTypeChecker, metaReader} = await info.ngCompiler['ensureAnalyzed']();
     const {program, sourceFiles} = info;
     const checker = program.getTypeChecker();
     const reflector = new TypeScriptReflectionHost(checker);
@@ -153,32 +161,19 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
 
     const knownQueries = new KnownQueries(info, globalMetadata);
     const referenceResult: ReferenceResult<ClassFieldDescriptor> = {references: []};
+    const sourceQueries: ExtractedQuery[] = [];
 
     const isMigratedQuery = (id: ClassFieldUniqueKey) =>
       globalMetadata.knownQueryFields[id] !== undefined &&
       globalMetadata.problematicQueries[id] === undefined;
 
+    // Detect all queries in this unit.
     const queryWholeProgramVisitor = (node: ts.Node) => {
       // Detect all SOURCE queries and migrate them, if possible.
       const extractedQuery = extractSourceQueryDefinition(node, reflector, evaluator, info);
       if (extractedQuery !== null) {
         knownQueries.registerQueryField(extractedQuery.node, extractedQuery.id);
-
-        if (!isMigratedQuery(extractedQuery.id)) {
-          updateFileState(filesWithIncompleteMigration, node.getSourceFile(), extractedQuery.kind);
-          return;
-        }
-        updateFileState(filesWithMigratedQueries, node.getSourceFile(), extractedQuery.kind);
-
-        replacements.push(
-          ...computeReplacementsToMigrateQuery(
-            node as ts.PropertyDeclaration,
-            extractedQuery,
-            importManager,
-            info,
-            printer,
-          ),
-        );
+        sourceQueries.push(extractedQuery);
         return;
       }
 
@@ -198,6 +193,7 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
       ts.forEachChild(sf, queryWholeProgramVisitor);
     }
 
+    // Find all references.
     const groupedAstVisitor = new GroupedTsAstVisitor(sourceFiles);
     groupedAstVisitor.register(
       createFindAllSourceFileReferencesVisitor(
@@ -206,19 +202,53 @@ export class SignalQueriesMigration extends TsurgeComplexMigration<
         reflector,
         info.ngCompiler['resourceManager'],
         evaluator,
-        info.ngCompiler.getTemplateTypeChecker(),
+        templateTypeChecker,
         knownQueries,
         referenceResult,
       ).visitor,
     );
+
+    const inheritanceGraph = new InheritanceGraph(checker).expensivePopulate(info.sourceFiles);
+    checkIncompatiblePatterns(inheritanceGraph, checker, groupedAstVisitor, knownQueries, () =>
+      knownQueries.getAllClassesWithQueries(),
+    );
     groupedAstVisitor.execute();
 
+    // Check inheritance.
+    checkInheritanceOfKnownFields(inheritanceGraph, metaReader, knownQueries, {
+      getFieldsForClass: (n) => knownQueries.getQueryFieldsOfClass(n) ?? [],
+      isClassWithKnownFields: (clazz) => knownQueries.getQueryFieldsOfClass(clazz) !== undefined,
+    });
+
+    // Migrate declarations.
+    for (const extractedQuery of sourceQueries) {
+      const node = extractedQuery.node;
+      const sf = node.getSourceFile();
+
+      if (!isMigratedQuery(extractedQuery.id)) {
+        updateFileState(filesWithIncompleteMigration, sf, extractedQuery.kind);
+        continue;
+      }
+      updateFileState(filesWithMigratedQueries, sf, extractedQuery.kind);
+
+      replacements.push(
+        ...computeReplacementsToMigrateQuery(
+          node as ts.PropertyDeclaration,
+          extractedQuery,
+          importManager,
+          info,
+          printer,
+        ),
+      );
+    }
+
+    // Migrate references.
     const referenceMigrationHost: ReferenceMigrationHost<ClassFieldDescriptor> = {
       printer,
       replacements,
       shouldMigrateReferencesToField: (field) => isMigratedQuery(field.key),
       shouldMigrateReferencesToClass: (clazz) =>
-        !!knownQueries.getQueryFieldsOfClass(clazz)?.some((q) => isMigratedQuery(q)),
+        !!knownQueries.getQueryFieldsOfClass(clazz)?.some((q) => isMigratedQuery(q.key)),
     };
     migrateTypeScriptReferences(referenceMigrationHost, referenceResult.references, checker, info);
     migrateTemplateReferences(referenceMigrationHost, referenceResult.references);
