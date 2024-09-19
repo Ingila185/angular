@@ -1,3 +1,41 @@
+<a name="19.0.0-next.6"></a>
+# 19.0.0-next.6 (2024-09-18)
+### compiler-cli
+| Commit | Type | Description |
+| -- | -- | -- |
+| [f611faadfe](https://github.com/angular/angular/commit/f611faadfedd8dc2c3291da98e2c2c60fe3984bd) | fix | extended diagnostics not validating ICUs ([#57845](https://github.com/angular/angular/pull/57845)) |
+### core
+| Commit | Type | Description |
+| -- | -- | -- |
+| [3ebe6b4ad4](https://github.com/angular/angular/commit/3ebe6b4ad401337e18619edc34477ae98226fa3e) | feat | Add async `run` method on `ExperimentalPendingTasks` ([#56546](https://github.com/angular/angular/pull/56546)) |
+| [1b1519224d](https://github.com/angular/angular/commit/1b1519224d10c1cd25d05d7b958772b9adee1e1a) | feat | mark input, output and model APIs as stable ([#57804](https://github.com/angular/angular/pull/57804)) |
+| [e5adf92965](https://github.com/angular/angular/commit/e5adf9296595644e415d5c147df08890be01ba77) | feat | stabilize `@let` syntax ([#57813](https://github.com/angular/angular/pull/57813)) |
+| [4231e8f28f](https://github.com/angular/angular/commit/4231e8f28ffe8f55dddc2af0647b5b04fa8445d7) | fix | Handle `@let` declaration with array when `preparingForHydration` ([#57816](https://github.com/angular/angular/pull/57816)) |
+### migrations
+| Commit | Type | Description |
+| -- | -- | -- |
+| [59fe9bc772](https://github.com/angular/angular/commit/59fe9bc77236f1374427a851e55b0fa5216d9cf9) | feat | introduce signal input migration as `ng generate` schematic ([#57805](https://github.com/angular/angular/pull/57805)) |
+| [6144612940](https://github.com/angular/angular/commit/614461294041d7a2331bf7528907f37353205115) | fix | account for explicit standalone: false in migration ([#57803](https://github.com/angular/angular/pull/57803)) |
+
+<!-- CHANGELOG SPLIT MARKER -->
+
+<a name="18.2.5"></a>
+# 18.2.5 (2024-09-18)
+### compiler-cli
+| Commit | Type | Description |
+| -- | -- | -- |
+| [e685ed883a](https://github.com/angular/angular/commit/e685ed883a09628c2b87a11a17ffb6d858d51c54) | fix | extended diagnostics not validating ICUs ([#57845](https://github.com/angular/angular/pull/57845)) |
+### core
+| Commit | Type | Description |
+| -- | -- | -- |
+| [76709d5d6e](https://github.com/angular/angular/commit/76709d5d6ec1f83e3f44641704b540636f91b5f4) | fix | Handle `@let` declaration with array when `preparingForHydration` ([#57816](https://github.com/angular/angular/pull/57816)) |
+### migrations
+| Commit | Type | Description |
+| -- | -- | -- |
+| [5c866942a1](https://github.com/angular/angular/commit/5c866942a1b8a60e3a024385048bbb2f52f84513) | fix | account for explicit standalone: false in migration ([#57803](https://github.com/angular/angular/pull/57803)) |
+
+<!-- CHANGELOG SPLIT MARKER -->
+
 <a name="19.0.0-next.5"></a>
 # 19.0.0-next.5 (2024-09-11)
 ### core
