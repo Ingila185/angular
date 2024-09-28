@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {forwardRef, resolveForwardRef} from '../../di/forward_ref';
@@ -215,4 +215,6 @@ export const angularCoreEnv: {[name: string]: unknown} = (() => ({
   'ɵɵtwoWayProperty': r3.ɵɵtwoWayProperty,
   'ɵɵtwoWayBindingSet': r3.ɵɵtwoWayBindingSet,
   'ɵɵtwoWayListener': r3.ɵɵtwoWayListener,
+
+  'ɵɵreplaceMedata': r3.ɵɵreplaceMedata,
 }))();

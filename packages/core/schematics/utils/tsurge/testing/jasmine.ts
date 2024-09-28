@@ -3,11 +3,12 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 /// <reference types="jasmine" />
 
+import chalk from 'chalk';
 import {dedent} from './dedent';
 import {diffText} from './diff';
 
@@ -34,7 +35,11 @@ export function setupTsurgeJasmineHelpers() {
           const diffWithColors = diffText(expected, actual);
           return {
             pass: false,
-            message: `Expected contents to match. Diff below.\n${diffWithColors}`,
+            message:
+              `${chalk.bold('Expected contents to match.')}\n\n` +
+              `  - ${chalk.green('■■■■■■■')}: Unexpected text in your test assertion.\n` +
+              `  - ${chalk.red(`■■■■■■■`)}: Text that is missing in your assertion.\n` +
+              `${chalk.bold('Diff below')}:\n${diffWithColors}`,
           };
         },
       };

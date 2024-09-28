@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {TestBed} from '@angular/core/testing';
@@ -11,8 +11,6 @@ import {filter, tap} from 'rxjs/operators';
 
 import {EventEmitter} from '../src/event_emitter';
 import {ApplicationRef} from '../public_api';
-import {firstValueFrom} from 'rxjs';
-import {PendingTasks} from '../src/pending_tasks';
 
 describe('EventEmitter', () => {
   let emitter: EventEmitter<number>;

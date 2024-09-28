@@ -3,11 +3,11 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ɵɵdefineInjectable} from '../../di/interface/defs';
-import {PendingTasks} from '../../pending_tasks';
+import {PendingTasksInternal} from '../../pending_tasks';
 import {inject} from '../../di/injector_compatibility';
 
 /**
@@ -51,7 +51,7 @@ export abstract class EffectScheduler {
 export class ZoneAwareEffectScheduler implements EffectScheduler {
   private queuedEffectCount = 0;
   private queues = new Map<Zone | null, Set<SchedulableEffect>>();
-  private readonly pendingTasks = inject(PendingTasks);
+  private readonly pendingTasks = inject(PendingTasksInternal);
   protected taskId: number | null = null;
 
   schedule(handle: SchedulableEffect): void {

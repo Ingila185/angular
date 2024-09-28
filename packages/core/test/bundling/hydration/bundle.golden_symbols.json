@@ -126,9 +126,6 @@
     "name": "DomAdapter"
   },
   {
-    "name": "DomEventsPlugin"
-  },
-  {
     "name": "DomRendererFactory2"
   },
   {
@@ -174,9 +171,6 @@
     "name": "ErrorHandler"
   },
   {
-    "name": "EventDelegationPlugin"
-  },
-  {
     "name": "EventEmitter"
   },
   {
@@ -184,9 +178,6 @@
   },
   {
     "name": "EventManagerPlugin"
-  },
-  {
-    "name": "GLOBAL_EVENT_DELEGATION"
   },
   {
     "name": "GenericBrowserDomAdapter"
@@ -399,7 +390,7 @@
     "name": "PRESERVE_HOST_CONTENT"
   },
   {
-    "name": "PendingTasks"
+    "name": "PendingTasksInternal"
   },
   {
     "name": "R3Injector"
@@ -745,6 +736,9 @@
   },
   {
     "name": "createOperatorSubscriber"
+  },
+  {
+    "name": "createStyleElement"
   },
   {
     "name": "createTView"
@@ -1273,6 +1267,9 @@
   },
   {
     "name": "removeDehydratedViews"
+  },
+  {
+    "name": "removeElements"
   },
   {
     "name": "removeFromArray"

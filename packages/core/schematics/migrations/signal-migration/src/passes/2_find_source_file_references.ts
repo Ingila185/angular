@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ResourceLoader} from '@angular/compiler-cli/src/ngtsc/annotations';
@@ -37,6 +37,7 @@ export function pass2_IdentifySourceFileReferences(
   groupedTsAstVisitor: GroupedTsAstVisitor,
   knownInputs: KnownInputs,
   result: MigrationResult,
+  fieldNamesToConsiderForReferenceLookup: Set<string> | null,
 ) {
   groupedTsAstVisitor.register(
     createFindAllSourceFileReferencesVisitor(
@@ -47,6 +48,7 @@ export function pass2_IdentifySourceFileReferences(
       evaluator,
       templateTypeChecker,
       knownInputs,
+      fieldNamesToConsiderForReferenceLookup,
       result,
     ).visitor,
   );

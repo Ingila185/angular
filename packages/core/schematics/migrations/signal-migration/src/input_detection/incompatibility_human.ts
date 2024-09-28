@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ClassIncompatibilityReason, InputIncompatibilityReason} from './incompatibility';
@@ -74,6 +74,11 @@ export function getMessageForInputIncompatibility(reason: InputIncompatibilityRe
         short: 'Your application code writes to the input. This prevents migration.',
         extra: 'Signal inputs are readonly, so migrating would break your build.',
       };
+    case InputIncompatibilityReason.OutsideOfMigrationScope:
+      return {
+        short: 'This input is not part of any source files in your project.',
+        extra: 'The migration excludes inputs if no source file declaring the input was seen.',
+      };
   }
 }
 
@@ -96,7 +101,7 @@ export function getMessageForClassIncompatibility(reason: ClassIncompatibilityRe
     case ClassIncompatibilityReason.ClassManuallyInstantiated:
       return {
         short:
-          'Class of this input is manually instantiated (`new Cmp()`). ' +
+          'Class of this input is manually instantiated. ' +
           'This is discouraged and prevents migration',
         extra:
           'Signal inputs require a DI injection context. Manually instantiating ' +

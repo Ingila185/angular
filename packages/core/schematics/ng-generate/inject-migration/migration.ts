@@ -3,14 +3,13 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
 import {PendingChange, ChangeTracker} from '../../utils/change_tracker';
 import {
   analyzeFile,
-  getNodeIndentation,
   getSuperParameters,
   getConstructorUnusedParameters,
   hasGenerics,
@@ -22,6 +21,7 @@ import {getAngularDecorators} from '../../utils/ng_decorators';
 import {getImportOfIdentifier} from '../../utils/typescript/imports';
 import {closestNode} from '../../utils/typescript/nodes';
 import {findUninitializedPropertiesToCombine} from './internal';
+import {getLeadingLineWhitespaceOfNode} from '../../utils/tsurge/helpers/ast/leading_space';
 
 /**
  * Placeholder used to represent expressions inside the AST.
@@ -173,13 +173,13 @@ function migrateClass(
   const superParameters = superCall
     ? getSuperParameters(constructor, superCall, localTypeChecker)
     : null;
-  const memberIndentation = getNodeIndentation(node.members[0]);
+  const memberIndentation = getLeadingLineWhitespaceOfNode(node.members[0]);
   const removedStatementCount = removedStatements?.size || 0;
   const innerReference =
     superCall ||
     constructor.body?.statements.find((statement) => !removedStatements?.has(statement)) ||
     constructor;
-  const innerIndentation = getNodeIndentation(innerReference);
+  const innerIndentation = getLeadingLineWhitespaceOfNode(innerReference);
   const propsToAdd: string[] = [];
   const prependToConstructor: string[] = [];
   const afterSuper: string[] = [];

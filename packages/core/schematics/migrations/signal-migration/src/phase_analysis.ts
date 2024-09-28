@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {isShim} from '@angular/compiler-cli/src/ngtsc/shims';
@@ -67,6 +67,14 @@ export function executeAnalysisPhase(
       ),
   );
 
+  const fieldNamesToConsiderForReferenceLookup = new Set<string>();
+  for (const input of knownInputs.knownInputIds.values()) {
+    if (host.config.shouldMigrateInput?.(input) === false) {
+      continue;
+    }
+    fieldNamesToConsiderForReferenceLookup.add(input.descriptor.node.name.text);
+  }
+
   // A graph starting with source files is sufficient. We will resolve into
   // declaration files if a source file depends on such.
   const inheritanceGraph = new InheritanceGraph(typeChecker).expensivePopulate(sourceFiles);
@@ -83,6 +91,7 @@ export function executeAnalysisPhase(
     pass2And3SourceFileVisitor,
     knownInputs,
     result,
+    fieldNamesToConsiderForReferenceLookup,
   );
   // Register pass 3. Check incompatible patterns pass.
   pass3__checkIncompatiblePatterns(

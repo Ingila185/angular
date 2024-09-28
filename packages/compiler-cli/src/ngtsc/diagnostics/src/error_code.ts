@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 /**
@@ -154,6 +154,11 @@ export enum ErrorCode {
    * pipe.
    */
   COMPONENT_UNKNOWN_DEFERRED_IMPORT = 2022,
+
+  /**
+   * Raised when a `standalone: false` component is declared but `strictStandalone` is set.
+   */
+  NON_STANDALONE_NOT_ALLOWED = 2023,
 
   SYMBOL_NOT_EXPORTED = 3001,
   /**

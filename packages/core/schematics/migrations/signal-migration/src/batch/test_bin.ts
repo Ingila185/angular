@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import fs from 'fs';
@@ -22,7 +22,7 @@ main().catch((e) => {
 
 async function main() {
   const [mode, ...args] = process.argv.slice(2);
-  const migration = new SignalInputMigration();
+  const migration = new SignalInputMigration({insertTodosForSkippedFields: true});
 
   if (mode === 'extract') {
     const analyzeResult = await executeAnalyzePhase(migration, path.resolve(args[0]));

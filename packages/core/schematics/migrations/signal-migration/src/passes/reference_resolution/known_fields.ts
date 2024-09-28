@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
@@ -33,18 +33,6 @@ export interface ClassFieldDescriptor {
  * references throughout the project.
  */
 export interface KnownFields<D extends ClassFieldDescriptor> {
-  /**
-   * List of field names that should be respected when expensively
-   * looking up references to known fields.
-   *
-   * This is useful for integrations with e.g. language service
-   * where only a subset of fields is targeted, and otherwise
-   * checking references would take up a significant portion of time.
-   *
-   * May be null if all identifiers should be inspected.
-   */
-  fieldNamesToConsiderForReferenceLookup: Set<string> | null;
-
   /**
    * Attempt to retrieve a known field descriptor for the given symbol.
    *

@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 // We use TypeScript's native `ts.matchFiles` utility for the virtual file systems
@@ -100,10 +100,7 @@ export function createFileSystemTsReadDirectoryFn(
         return {files, directories};
       },
       (p) => fs.resolve(p),
-      (p) => {
-        const resolvedPath = fs.resolve(p);
-        return fs.exists(resolvedPath) && fs.stat(resolvedPath).isDirectory();
-      },
+      (p) => directoryExists(p),
     );
   };
 }

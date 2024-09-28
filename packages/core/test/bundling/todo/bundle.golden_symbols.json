@@ -171,9 +171,6 @@
     "name": "ErrorHandler"
   },
   {
-    "name": "EventDelegationPlugin"
-  },
-  {
     "name": "EventEmitter"
   },
   {
@@ -181,9 +178,6 @@
   },
   {
     "name": "EventManagerPlugin"
-  },
-  {
-    "name": "GLOBAL_EVENT_DELEGATION"
   },
   {
     "name": "GenericBrowserDomAdapter"
@@ -381,7 +375,7 @@
     "name": "PRESERVE_HOST_CONTENT"
   },
   {
-    "name": "PendingTasks"
+    "name": "PendingTasksInternal"
   },
   {
     "name": "PlatformRef"
@@ -636,7 +630,7 @@
     "name": "addToArray"
   },
   {
-    "name": "addToViewTree"
+    "name": "addToEndOfViewTree"
   },
   {
     "name": "allocExpando"
@@ -801,6 +795,9 @@
     "name": "createPlatformFactory"
   },
   {
+    "name": "createStyleElement"
+  },
+  {
     "name": "createTView"
   },
   {
@@ -946,6 +943,9 @@
   },
   {
     "name": "getFirstNativeNode"
+  },
+  {
+    "name": "getInitialLViewFlagsFromDef"
   },
   {
     "name": "getInjectImplementation"
@@ -1372,6 +1372,9 @@
   },
   {
     "name": "remove"
+  },
+  {
+    "name": "removeElements"
   },
   {
     "name": "removeFromArray"

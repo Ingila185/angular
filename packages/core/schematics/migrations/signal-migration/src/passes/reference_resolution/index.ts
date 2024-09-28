@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {ResourceLoader} from '@angular/compiler-cli/src/ngtsc/annotations';
@@ -44,6 +44,7 @@ export function createFindAllSourceFileReferencesVisitor<D extends ClassFieldDes
   evaluator: PartialEvaluator,
   templateTypeChecker: TemplateTypeChecker,
   knownFields: KnownFields<D>,
+  fieldNamesToConsiderForReferenceLookup: Set<string> | null,
   result: ReferenceResult<D>,
 ) {
   const debugElComponentInstanceTracker = new DebugElementComponentInstance(checker);
@@ -59,8 +60,12 @@ export function createFindAllSourceFileReferencesVisitor<D extends ClassFieldDes
     tsTypes: 0,
   };
 
+  // Schematic NodeJS execution may not have `global.performance` defined.
+  const currentTimeInMs = () =>
+    typeof global.performance !== 'undefined' ? global.performance.now() : Date.now();
+
   const visitor = (node: ts.Node) => {
-    let lastTime = performance.now();
+    let lastTime = currentTimeInMs();
 
     if (ts.isClassDeclaration(node)) {
       identifyTemplateReferences(
@@ -75,29 +80,37 @@ export function createFindAllSourceFileReferencesVisitor<D extends ClassFieldDes
         result,
         knownFields,
       );
-      perfCounters.template += (performance.now() - lastTime) / 1000;
-      lastTime = performance.now();
+      perfCounters.template += (currentTimeInMs() - lastTime) / 1000;
+      lastTime = currentTimeInMs();
 
       identifyHostBindingReferences(node, programInfo, checker, reflector, result, knownFields);
 
-      perfCounters.hostBindings += (performance.now() - lastTime) / 1000;
-      lastTime = performance.now();
+      perfCounters.hostBindings += (currentTimeInMs() - lastTime) / 1000;
+      lastTime = currentTimeInMs();
     }
 
-    lastTime = performance.now();
+    lastTime = currentTimeInMs();
 
     // find references, but do not capture input declarations itself.
     if (
       ts.isIdentifier(node) &&
       !(isInputContainerNode(node.parent) && node.parent.name === node)
     ) {
-      identifyPotentialTypeScriptReference(node, programInfo, checker, knownFields, result, {
-        debugElComponentInstanceTracker,
-      });
+      identifyPotentialTypeScriptReference(
+        node,
+        programInfo,
+        checker,
+        knownFields,
+        result,
+        fieldNamesToConsiderForReferenceLookup,
+        {
+          debugElComponentInstanceTracker,
+        },
+      );
     }
 
-    perfCounters.tsReferences += (performance.now() - lastTime) / 1000;
-    lastTime = performance.now();
+    perfCounters.tsReferences += (currentTimeInMs() - lastTime) / 1000;
+    lastTime = currentTimeInMs();
     // Detect `Partial<T>` references.
     // Those are relevant to be tracked as they may be updated in Catalyst to
     // unwrap signal inputs. Commonly people use `Partial` in Catalyst to type
@@ -116,7 +129,7 @@ export function createFindAllSourceFileReferencesVisitor<D extends ClassFieldDes
       });
     }
 
-    perfCounters.tsTypes += (performance.now() - lastTime) / 1000;
+    perfCounters.tsTypes += (currentTimeInMs() - lastTime) / 1000;
   };
 
   return {

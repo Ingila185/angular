@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {
@@ -136,6 +136,7 @@ export class DirectiveDecoratorHandler
     private includeClassMetadata: boolean,
     private readonly compilationMode: CompilationMode,
     private readonly jitDeclarationRegistry: JitDeclarationRegistry,
+    private readonly strictStandalone: boolean,
   ) {}
 
   readonly precedence = HandlerPrecedence.PRIMARY;
@@ -190,6 +191,7 @@ export class DirectiveDecoratorHandler
       this.annotateForClosureCompiler,
       this.compilationMode,
       /* defaultSelector */ null,
+      this.strictStandalone,
     );
     // `extractDirectiveMetadata` returns `jitForced = true` when the `@Directive` has
     // set `jit: true`. In this case, compilation of the decorator is skipped. Returning

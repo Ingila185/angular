@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {TmplAstNode} from '@angular/compiler';
@@ -78,6 +78,7 @@ export function identifyTemplateReferences<D extends ClassFieldDescriptor>(
         kind: ReferenceKind.InTemplate,
         from: {
           read: res.read,
+          readAstPath: res.readAstPath,
           node: res.context,
           isObjectShorthandExpression: res.isObjectShorthandExpression,
           originatingTsFile: projectFile(node.getSourceFile(), programInfo),

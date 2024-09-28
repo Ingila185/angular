@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {Injector} from '../di/injector';
@@ -22,7 +22,7 @@ import {assertNodeInjector} from '../render3/assert';
 import {ComponentFactory as R3ComponentFactory} from '../render3/component_ref';
 import {getComponentDef} from '../render3/definition';
 import {getParentInjectorLocation, NodeInjector} from '../render3/di';
-import {addToViewTree, createLContainer} from '../render3/instructions/shared';
+import {addToEndOfViewTree, createLContainer} from '../render3/instructions/shared';
 import {
   CONTAINER_HEADER_OFFSET,
   DEHYDRATED_VIEWS,
@@ -703,7 +703,7 @@ export function createContainerRef(
     // `_locateOrCreateAnchorNode`).
     lContainer = createLContainer(slotValue, hostLView, null!, hostTNode);
     hostLView[hostTNode.index] = lContainer;
-    addToViewTree(hostLView, lContainer);
+    addToEndOfViewTree(hostLView, lContainer);
   }
   _locateOrCreateAnchorNode(lContainer, hostLView, hostTNode, slotValue);
 

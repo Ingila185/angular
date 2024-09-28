@@ -3,12 +3,12 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {KnownInputs} from '../input_detection/known_inputs';
 import {ClassFieldUniqueKey} from '../passes/reference_resolution/known_fields';
-import {CompilationUnitData, IncompatibilityType} from './unit_data';
+import {CompilationUnitData} from './unit_data';
 
 export function populateKnownInputsFromGlobalData(
   knownInputs: KnownInputs,
@@ -24,18 +24,18 @@ export function populateKnownInputsFromGlobalData(
     }
 
     const inputMetadata = knownInputs.get({key})!;
-    if (!inputMetadata.isIncompatible() && info.isIncompatible) {
-      if (info.isIncompatible.kind === IncompatibilityType.VIA_CLASS) {
-        knownInputs.markClassIncompatible(
-          inputMetadata.container.clazz,
-          info.isIncompatible.reason,
-        );
-      } else {
-        knownInputs.markFieldIncompatible(inputMetadata.descriptor, {
-          context: null, // No context serializable.
-          reason: info.isIncompatible.reason,
-        });
-      }
+    if (info.memberIncompatibility !== null) {
+      knownInputs.markFieldIncompatible(inputMetadata.descriptor, {
+        context: null, // No context serializable.
+        reason: info.memberIncompatibility,
+      });
+    }
+
+    if (info.owningClassIncompatibility !== null) {
+      knownInputs.markClassIncompatible(
+        inputMetadata.container.clazz,
+        info.owningClassIncompatibility,
+      );
     }
   }
 }

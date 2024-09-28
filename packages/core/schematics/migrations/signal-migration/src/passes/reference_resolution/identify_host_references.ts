@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {getAngularDecorators} from '@angular/compiler-cli/src/ngtsc/annotations';
@@ -162,6 +162,7 @@ export function identifyHostBindingReferences<D extends ClassFieldDescriptor>(
       kind: ReferenceKind.InHostBinding,
       from: {
         read: ref.read,
+        readAstPath: ref.readAstPath,
         isObjectShorthandExpression: ref.isObjectShorthandExpression,
         isWrite: ref.isWrite,
         file: projectFile(ref.context.getSourceFile(), programInfo),

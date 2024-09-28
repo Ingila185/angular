@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
@@ -221,29 +221,6 @@ export function getSuperParameters(
   });
 
   return usedParams;
-}
-
-/**
- * Gets the indentation text of a node. Can be used to
- * output text with the same level of indentation.
- * @param node Node for which to get the indentation level.
- */
-export function getNodeIndentation(node: ts.Node): string {
-  const fullText = node.getFullText();
-  const end = fullText.indexOf(node.getText());
-  let result = '';
-
-  for (let i = end - 1; i > -1; i--) {
-    // Note: LF line endings are `\n` while CRLF are `\r\n`. This logic should cover both, because
-    // we start from the beginning of the node and go backwards so will always hit `\n` first.
-    if (fullText[i] !== '\n') {
-      result = fullText[i] + result;
-    } else {
-      break;
-    }
-  }
-
-  return result;
 }
 
 /** Checks whether a parameter node declares a property on its class. */

@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {AnalysisProgramInfo} from './analysis_deps';
@@ -54,7 +54,7 @@ export function executeMigrationPhase(
 
   // Migrate passes.
   pass5__migrateTypeScriptReferences(referenceMigrationHost, result.references, typeChecker, info);
-  pass6__migrateInputDeclarations(typeChecker, result, knownInputs, importManager, info);
+  pass6__migrateInputDeclarations(host, typeChecker, result, knownInputs, importManager, info);
   pass7__migrateTemplateReferences(referenceMigrationHost, result.references);
   pass8__migrateHostBindings(referenceMigrationHost, result.references, info);
   pass9__migrateTypeScriptTypeReferences(

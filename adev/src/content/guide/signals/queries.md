@@ -8,8 +8,6 @@ There are two categories of query: view queries and content queries.
 
 Signal queries supply query results as a reactive signal primitive. You can use query results in `computed` and `effect`, composing these results with other signals.
 
-IMPORTANT: Signal queries are in [developer preview](reference/releases#developer-preview). APIs may change based on feedback without going through Angular's deprecation cycle.
-
 If you're already familiar with Angular queries, you can jump straight to [Comparing signal-based queries to decorator-based queries](#comparing-signal-based-queries-to-decorator-based-queries)
 
 ## View queries
@@ -149,7 +147,7 @@ export class App {
 
 ## Results availability timing
 
-A signal query authoring functions will be executed as part of the directive instance construction. This happens before we could create a query instance and execute the template’s creation mode to collect any matches. As a consequence, there is a period of time where the signal instance was created (and can be read) but no query results could have been collected. By default Angular will return `undefined` (for child queries) or an empty array (for children queries) before results are available. Required queries will throw if accessed at this point.
+Signal query declaration functions (ex.: `viewChild`) will be executed while the directive is instantiated. This happens before a template is rendered and before Angular can collect any query matches. As a consequence, there is a period of time where the signal instance was created (and can be read) but no query results could have been collected. By default Angular will return `undefined` (for child queries) or an empty array (for children queries) before results are available. Required queries will throw if accessed at this point.
 
 Angular computes signal-based query results lazily, on demand. This means that query results are not collected unless there is a code path that reads the signal. 
 

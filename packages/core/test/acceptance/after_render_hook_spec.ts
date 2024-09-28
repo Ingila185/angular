@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {PLATFORM_BROWSER_ID, PLATFORM_SERVER_ID} from '@angular/common/src/platform_id';
@@ -714,6 +714,53 @@ describe('after render hooks', () => {
             /afterRender\(\) cannot be called from within a reactive context/,
           );
         });
+      });
+
+      it('should not destroy automatically if manualCleanup is set', () => {
+        let afterRenderRef: AfterRenderRef | null = null;
+        let count = 0;
+
+        @Component({selector: 'comp', template: ''})
+        class Comp {
+          constructor() {
+            afterRenderRef = afterRender(() => count++, {manualCleanup: true});
+          }
+        }
+
+        @Component({
+          imports: [Comp],
+          template: `
+            @if (shouldShow) {
+              <comp/>
+            }
+          `,
+        })
+        class App {
+          shouldShow = true;
+        }
+
+        TestBed.configureTestingModule({
+          declarations: [App, Comp],
+          ...COMMON_CONFIGURATION,
+        });
+        const component = createAndAttachComponent(App);
+        const appRef = TestBed.inject(ApplicationRef);
+        expect(count).toBe(0);
+
+        appRef.tick();
+        expect(count).toBe(1);
+
+        component.instance.shouldShow = false;
+        component.changeDetectorRef.detectChanges();
+        appRef.tick();
+        expect(count).toBe(2);
+        appRef.tick();
+        expect(count).toBe(3);
+
+        // Ensure that manual destruction still works.
+        afterRenderRef!.destroy();
+        appRef.tick();
+        expect(count).toBe(3);
       });
     });
 

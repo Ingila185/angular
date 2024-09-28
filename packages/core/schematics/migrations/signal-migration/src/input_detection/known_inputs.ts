@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import ts from 'typescript';
@@ -11,12 +11,19 @@ import {InputDescriptor} from '../utils/input_id';
 import {ExtractedInput} from './input_decorator';
 import {InputNode} from './input_node';
 import {DirectiveInfo} from './directive_info';
-import {ClassIncompatibilityReason, InputMemberIncompatibility} from './incompatibility';
+import {
+  ClassIncompatibilityReason,
+  InputIncompatibilityReason,
+  InputMemberIncompatibility,
+  isInputMemberIncompatibility,
+  pickInputIncompatibility,
+} from './incompatibility';
 import {ClassFieldUniqueKey, KnownFields} from '../passes/reference_resolution/known_fields';
 import {attemptRetrieveInputFromSymbol} from './nodes_to_input';
 import {ProgramInfo, projectFile, ProjectFile} from '../../../../utils/tsurge';
 import {MigrationConfig} from '../migration_config';
 import {ProblematicFieldRegistry} from '../passes/problematic_patterns/problematic_field_registry';
+import {InheritanceTracker} from '../passes/problematic_patterns/check_inheritance';
 
 /**
  * Public interface describing a single known `@Input()` in the
@@ -30,6 +37,7 @@ export type KnownInputInfo = {
   metadata: ExtractedInput;
   descriptor: InputDescriptor;
   container: DirectiveInfo;
+  extendsFrom: InputDescriptor | null;
   isIncompatible: () => boolean;
 };
 
@@ -40,15 +48,15 @@ export type KnownInputInfo = {
  * loaded into the program.
  */
 export class KnownInputs
-  implements KnownFields<InputDescriptor>, ProblematicFieldRegistry<InputDescriptor>
+  implements
+    KnownFields<InputDescriptor>,
+    ProblematicFieldRegistry<InputDescriptor>,
+    InheritanceTracker<InputDescriptor>
 {
   /**
    * Known inputs from the whole program.
    */
   knownInputIds = new Map<ClassFieldUniqueKey, KnownInputInfo>();
-
-  // TODO: perf comment
-  fieldNamesToConsiderForReferenceLookup: Set<string> = new Set<string>();
 
   /** Known container classes of inputs. */
   private _allClasses = new Set<ts.ClassDeclaration>();
@@ -96,6 +104,7 @@ export class KnownInputs
       metadata: data.metadata,
       descriptor: data.descriptor,
       container: directiveInfo,
+      extendsFrom: null,
       isIncompatible: () => directiveInfo.isInputMemberIncompatible(data.descriptor),
     };
 
@@ -105,10 +114,6 @@ export class KnownInputs
     });
     this.knownInputIds.set(data.descriptor.key, inputInfo);
     this._allClasses.add(data.node.parent);
-
-    if (this.config.shouldMigrateInput?.(inputInfo) ?? true) {
-      this.fieldNamesToConsiderForReferenceLookup.add(data.descriptor.node.name.text);
-    }
   }
 
   /** Whether the given input is incompatible for migration. */
@@ -121,6 +126,15 @@ export class KnownInputs
     if (!this.knownInputIds.has(input.key)) {
       throw new Error(`Input cannot be marked as incompatible because it's not registered.`);
     }
+
+    const inputInfo = this.knownInputIds.get(input.key)!;
+    const existingIncompatibility = inputInfo.container.getInputMemberIncompatibility(input);
+
+    // Ensure an existing more significant incompatibility is not overridden.
+    if (existingIncompatibility !== null && isInputMemberIncompatibility(existingIncompatibility)) {
+      incompatibility = pickInputIncompatibility(existingIncompatibility, incompatibility);
+    }
+
     this.knownInputIds
       .get(input.key)!
       .container.memberIncompatibility.set(input.key, incompatibility);
@@ -140,5 +154,29 @@ export class KnownInputs
 
   shouldTrackClassReference(clazz: ts.ClassDeclaration): boolean {
     return this.isInputContainingClass(clazz);
+  }
+
+  captureKnownFieldInheritanceRelationship(
+    derived: InputDescriptor,
+    parent: InputDescriptor,
+  ): void {
+    if (!this.has(derived)) {
+      throw new Error(`Expected input to exist in registry: ${derived.key}`);
+    }
+    this.get(derived)!.extendsFrom = parent;
+  }
+
+  captureUnknownDerivedField(field: InputDescriptor): void {
+    this.markFieldIncompatible(field, {
+      context: null,
+      reason: InputIncompatibilityReason.OverriddenByDerivedClass,
+    });
+  }
+
+  captureUnknownParentField(field: InputDescriptor): void {
+    this.markFieldIncompatible(field, {
+      context: null,
+      reason: InputIncompatibilityReason.TypeConflictWithBaseClass,
+    });
   }
 }

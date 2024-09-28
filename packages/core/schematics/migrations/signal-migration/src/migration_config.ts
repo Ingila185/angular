@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import type {KnownInputInfo} from './input_detection/known_inputs';
@@ -14,6 +14,12 @@ export interface MigrationConfig {
    * be marked as incompatible for migration.
    */
   bestEffortMode?: boolean;
+
+  /**
+   * Whether to insert TODOs for skipped fields, and reasons on why they
+   * were skipped.
+   */
+  insertTodosForSkippedFields?: boolean;
 
   /**
    * Whether the given input should be migrated. With batch execution, this

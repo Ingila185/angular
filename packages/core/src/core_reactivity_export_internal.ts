@@ -3,8 +3,10 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
+
+export {SIGNAL as ɵSIGNAL} from '@angular/core/primitives/signals';
 
 export {isSignal, Signal, ValueEqualityFn} from './render3/reactivity/api';
 export {computed, CreateComputedOptions} from './render3/reactivity/computed';

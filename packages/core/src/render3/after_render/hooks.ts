@@ -3,7 +3,7 @@
  * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.io/license
+ * found in the LICENSE file at https://angular.dev/license
  */
 
 import {assertInInjectionContext} from '../../di';
@@ -43,6 +43,14 @@ export interface AfterRenderOptions {
    * If this is not provided, the current injection context will be used instead (via `inject`).
    */
   injector?: Injector;
+
+  /**
+   * Whether the hook should require manual cleanup.
+   *
+   * If this is `false` (the default) the hook will automatically register itself to be cleaned up
+   * with the current `DestroyRef`.
+   */
+  manualCleanup?: boolean;
 
   /**
    * The phase the callback should be invoked in.
@@ -448,11 +456,12 @@ function afterRenderImpl(
   manager.impl ??= injector.get(AfterRenderImpl);
 
   const hooks = options?.phase ?? AfterRenderPhase.MixedReadWrite;
+  const destroyRef = options?.manualCleanup !== true ? injector.get(DestroyRef) : null;
   const sequence = new AfterRenderSequence(
     manager.impl,
     getHooks(callbackOrSpec, hooks),
     once,
-    injector.get(DestroyRef),
+    destroyRef,
   );
   manager.impl.register(sequence);
   return sequence;
