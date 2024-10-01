@@ -15,9 +15,14 @@ import {
   Reference,
 } from '../signal-migration/src/passes/reference_resolution/reference_kinds';
 import type {GlobalUnitData} from './migration';
-import {checkNonTsReferenceCallsField, checkTsReferenceCallsField} from './property_accesses';
+import {checkNonTsReferenceAccessesField, checkTsReferenceAccessesField} from './property_accesses';
 
-export function replaceQueryListGetCall(
+const mapping = new Map([
+  ['first', 'at(0)!'],
+  ['last', 'at(-1)!'],
+]);
+
+export function replaceQueryListFirstAndLastReferences(
   ref: Reference<ClassFieldDescriptor>,
   info: ProgramInfo,
   globalMetadata: GlobalUnitData,
@@ -32,19 +37,19 @@ export function replaceQueryListGetCall(
   }
 
   if (isTsReference(ref)) {
-    const getCallExpr = checkTsReferenceCallsField(ref, 'get');
-    if (getCallExpr === null) {
+    const expr =
+      checkTsReferenceAccessesField(ref, 'first') ?? checkTsReferenceAccessesField(ref, 'last');
+    if (expr === null) {
       return;
     }
-    const getExpr = getCallExpr.expression;
 
     replacements.push(
       new Replacement(
-        projectFile(getExpr.getSourceFile(), info),
+        projectFile(expr.getSourceFile(), info),
         new TextUpdate({
-          position: getExpr.name.getStart(),
-          end: getExpr.name.getEnd(),
-          toInsert: 'at',
+          position: expr.name.getStart(),
+          end: expr.name.getEnd(),
+          toInsert: mapping.get(expr.name.text)!,
         }),
       ),
     );
@@ -52,8 +57,9 @@ export function replaceQueryListGetCall(
   }
 
   // Template and host binding references.
-  const callExpr = checkNonTsReferenceCallsField(ref, 'get');
-  if (callExpr === null) {
+  const expr =
+    checkNonTsReferenceAccessesField(ref, 'first') ?? checkNonTsReferenceAccessesField(ref, 'last');
+  if (expr === null) {
     return;
   }
 
@@ -64,9 +70,9 @@ export function replaceQueryListGetCall(
     new Replacement(
       file,
       new TextUpdate({
-        position: offset + callExpr.receiver.nameSpan.start,
-        end: offset + callExpr.receiver.nameSpan.end,
-        toInsert: 'at',
+        position: offset + expr.nameSpan.start,
+        end: offset + expr.nameSpan.end,
+        toInsert: mapping.get(expr.name)!,
       }),
     ),
   );
