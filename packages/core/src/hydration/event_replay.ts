@@ -15,6 +15,7 @@ import {
   registerDispatcher,
   getAppScopedQueuedEventInfos,
   clearAppScopedEarlyEventContract,
+  EventPhase,
 } from '@angular/core/primitives/event-dispatch';
 
 import {APP_BOOTSTRAP_LISTENER, ApplicationRef, whenStable} from '../application/application_ref';
@@ -24,24 +25,38 @@ import {Provider} from '../di/interface/provider';
 import {setStashFn} from '../render3/instructions/listener';
 import {RElement} from '../render3/interfaces/renderer_dom';
 import {CLEANUP, LView, TView} from '../render3/interfaces/view';
-import {isPlatformBrowser} from '../render3/util/misc_utils';
 import {unwrapRNode} from '../render3/util/view_utils';
 
-import {EVENT_REPLAY_ENABLED_DEFAULT, IS_EVENT_REPLAY_ENABLED} from './tokens';
+import {
+  JSACTION_BLOCK_ELEMENT_MAP,
+  EVENT_REPLAY_ENABLED_DEFAULT,
+  IS_EVENT_REPLAY_ENABLED,
+} from './tokens';
 import {
   sharedStashFunction,
-  removeListeners,
-  invokeRegisteredListeners,
+  sharedMapFunction,
+  DEFER_BLOCK_SSR_ID_ATTRIBUTE,
   EventContractDetails,
   JSACTION_EVENT_CONTRACT,
+  removeListenersFromBlocks,
 } from '../event_delegation_utils';
 import {APP_ID} from '../application/application_tokens';
 import {performanceMarkFeature} from '../util/performance';
+import {hydrateFromBlockName} from './blocks';
+import {DeferBlock, DeferBlockTrigger, HydrateTriggerDetails} from '../defer/interfaces';
+import {triggerAndWaitForCompletion} from '../defer/instructions';
+import {cleanupDehydratedViews, cleanupLContainer} from './cleanup';
+import {hoverEventNames, interactionEventNames} from '../defer/dom_triggers';
+
+/** Apps in which we've enabled event replay.
+ *  This is to prevent initializing event replay more than once per app.
+ */
+const appsWithEventReplay = new WeakSet<ApplicationRef>();
 
 /**
- * A set of DOM elements with `jsaction` attributes.
+ * A list of block events that need to be replayed
  */
-const jsactionSet = new Set<Element>();
+let blockEventQueue: {event: Event; currentTarget: Element}[] = [];
 
 /**
  * Determines whether Event Replay feature should be activated on the client.
@@ -55,12 +70,12 @@ function shouldEnableEventReplay(injector: Injector) {
  * Requires hydration to be enabled separately.
  */
 export function withEventReplay(): Provider[] {
-  return [
+  const providers: Provider[] = [
     {
       provide: IS_EVENT_REPLAY_ENABLED,
       useFactory: () => {
         let isEnabled = true;
-        if (isPlatformBrowser()) {
+        if (typeof ngServerMode === 'undefined' || !ngServerMode) {
           // Note: globalThis[CONTRACT_PROPERTY] may be undefined in case Event Replay feature
           // is enabled, but there are no events configured in this application, in which case
           // we don't activate this feature, since there are no events to replay.
@@ -73,23 +88,33 @@ export function withEventReplay(): Provider[] {
         return isEnabled;
       },
     },
-    {
-      provide: ENVIRONMENT_INITIALIZER,
-      useValue: () => {
-        const injector = inject(Injector);
-        if (isPlatformBrowser(injector) && shouldEnableEventReplay(injector)) {
-          setStashFn((rEl: RElement, eventName: string, listenerFn: VoidFunction) => {
-            sharedStashFunction(rEl, eventName, listenerFn);
-            jsactionSet.add(rEl as unknown as Element);
-          });
-        }
+  ];
+
+  if (typeof ngServerMode === 'undefined' || !ngServerMode) {
+    providers.push(
+      {
+        provide: ENVIRONMENT_INITIALIZER,
+        useValue: () => {
+          const injector = inject(Injector);
+          const appRef = injector.get(ApplicationRef);
+          // We have to check for the appRef here due to the possibility of multiple apps
+          // being present on the same page. We only want to enable event replay for the
+          // apps that actually want it.
+          if (!appsWithEventReplay.has(appRef)) {
+            const jsActionMap = inject(JSACTION_BLOCK_ELEMENT_MAP);
+            if (shouldEnableEventReplay(injector)) {
+              setStashFn((rEl: RElement, eventName: string, listenerFn: VoidFunction) => {
+                sharedStashFunction(rEl, eventName, listenerFn);
+                sharedMapFunction(rEl, jsActionMap);
+              });
+            }
+          }
+        },
+        multi: true,
       },
-      multi: true,
-    },
-    {
-      provide: APP_BOOTSTRAP_LISTENER,
-      useFactory: () => {
-        if (isPlatformBrowser()) {
+      {
+        provide: APP_BOOTSTRAP_LISTENER,
+        useFactory: () => {
           const injector = inject(Injector);
           const appRef = inject(ApplicationRef);
           return () => {
@@ -97,24 +122,30 @@ export function withEventReplay(): Provider[] {
               return;
             }
 
-            // Kick off event replay logic once hydration for the initial part
-            // of the application is completed. This timing is similar to the unclaimed
-            // dehydrated views cleanup timing.
-            whenStable(appRef).then(() => {
-              const eventContractDetails = injector.get(JSACTION_EVENT_CONTRACT);
-              initEventReplay(eventContractDetails, injector);
-              jsactionSet.forEach(removeListeners);
-              // After hydration, we shouldn't need to do anymore work related to
-              // event replay anymore.
-              setStashFn(() => {});
-            });
+            // We have to check for the appRef here due to the possibility of multiple apps
+            // being present on the same page. We only want to enable event replay for the
+            // apps that actually want it.
+            if (!appsWithEventReplay.has(appRef)) {
+              appsWithEventReplay.add(appRef);
+              appRef.onDestroy(() => appsWithEventReplay.delete(appRef));
+
+              // Kick off event replay logic once hydration for the initial part
+              // of the application is completed. This timing is similar to the unclaimed
+              // dehydrated views cleanup timing.
+              whenStable(appRef).then(() => {
+                const eventContractDetails = injector.get(JSACTION_EVENT_CONTRACT);
+                initEventReplay(eventContractDetails, injector);
+                removeListenersFromBlocks([''], injector);
+              });
+            }
           };
-        }
-        return () => {}; // noop for the server code
+        },
+        multi: true,
       },
-      multi: true,
-    },
-  ];
+    );
+  }
+
+  return providers;
 }
 
 const initEventReplay = (eventDelegation: EventContractDetails, injector: Injector) => {
@@ -133,7 +164,9 @@ const initEventReplay = (eventDelegation: EventContractDetails, injector: Inject
   const eventInfos = getAppScopedQueuedEventInfos(appId);
   eventContract.replayEarlyEventInfos(eventInfos);
   clearAppScopedEarlyEventContract(appId);
-  const dispatcher = new EventDispatcher(invokeRegisteredListeners);
+  const dispatcher = new EventDispatcher((event) => {
+    invokeRegisteredReplayListeners(injector, event, event.currentTarget as Element);
+  });
   registerDispatcher(eventContract, dispatcher);
 };
 
@@ -184,4 +217,114 @@ export function collectDomEventsInfo(
     }
   }
   return domEventsInfo;
+}
+
+function invokeListeners(event: Event, currentTarget: Element | null) {
+  const handlerFns = currentTarget?.__jsaction_fns?.get(event.type);
+  if (!handlerFns) {
+    return;
+  }
+  for (const handler of handlerFns) {
+    handler(event);
+  }
+}
+
+export function invokeRegisteredReplayListeners(
+  injector: Injector,
+  event: Event,
+  currentTarget: Element | null,
+) {
+  const blockName =
+    (currentTarget && currentTarget.getAttribute(DEFER_BLOCK_SSR_ID_ATTRIBUTE)) ?? '';
+  if (/d\d+/.test(blockName)) {
+    hydrateAndInvokeBlockListeners(blockName, injector, event, currentTarget!);
+  } else if (event.eventPhase === EventPhase.REPLAY) {
+    invokeListeners(event, currentTarget);
+  }
+}
+
+async function hydrateAndInvokeBlockListeners(
+  blockName: string,
+  injector: Injector,
+  event: Event,
+  currentTarget: Element,
+) {
+  blockEventQueue.push({event, currentTarget});
+  const {deferBlock, hydratedBlocks} = await hydrateFromBlockName(
+    injector,
+    blockName,
+    fetchAndRenderDeferBlock,
+  );
+  if (deferBlock !== null) {
+    const appRef = injector.get(ApplicationRef);
+    await appRef.whenStable();
+    replayQueuedBlockEvents(hydratedBlocks, injector);
+    cleanupLContainer(deferBlock.lContainer);
+  }
+}
+
+export async function fetchAndRenderDeferBlock(deferBlock: DeferBlock): Promise<DeferBlock> {
+  await triggerAndWaitForCompletion(deferBlock);
+  return deferBlock;
+}
+
+function replayQueuedBlockEvents(hydratedBlocks: Set<string>, injector: Injector) {
+  // clone the queue
+  const queue = [...blockEventQueue];
+  // empty it
+  blockEventQueue = [];
+  for (let {event, currentTarget} of queue) {
+    const blockName = currentTarget.getAttribute(DEFER_BLOCK_SSR_ID_ATTRIBUTE)!;
+    if (hydratedBlocks.has(blockName)) {
+      invokeListeners(event, currentTarget);
+    } else {
+      // requeue events that weren't yet hydrated
+      blockEventQueue.push({event, currentTarget});
+    }
+  }
+  cleanupDehydratedViews(injector.get(ApplicationRef));
+  removeListenersFromBlocks([...hydratedBlocks], injector);
+}
+
+export function convertHydrateTriggersToJsAction(
+  triggers: Map<DeferBlockTrigger, HydrateTriggerDetails | null> | null,
+): string[] {
+  let actionList: string[] = [];
+  if (triggers !== null) {
+    if (triggers.has(DeferBlockTrigger.Hover)) {
+      actionList.push(...hoverEventNames);
+    }
+    if (triggers.has(DeferBlockTrigger.Interaction)) {
+      actionList.push(...interactionEventNames);
+    }
+  }
+  return actionList;
+}
+
+export function appendBlocksToJSActionMap(el: RElement, injector: Injector) {
+  const jsActionMap = injector.get(JSACTION_BLOCK_ELEMENT_MAP);
+  sharedMapFunction(el, jsActionMap);
+}
+
+function gatherDeferBlocksByJSActionAttribute(doc: Document): Set<HTMLElement> {
+  const jsactionNodes = doc.body.querySelectorAll('[jsaction]');
+  const blockMap = new Set<HTMLElement>();
+  for (let node of jsactionNodes) {
+    const attr = node.getAttribute('jsaction');
+    const blockId = node.getAttribute('ngb');
+    const eventTypes = [...hoverEventNames.join(':;'), ...interactionEventNames.join(':;')].join(
+      '|',
+    );
+    if (attr?.match(eventTypes) && blockId !== null) {
+      blockMap.add(node as HTMLElement);
+    }
+  }
+  return blockMap;
+}
+
+export function appendDeferBlocksToJSActionMap(doc: Document, injector: Injector) {
+  const blockMap = gatherDeferBlocksByJSActionAttribute(doc);
+  for (let rNode of blockMap) {
+    appendBlocksToJSActionMap(rNode as RElement, injector);
+  }
 }

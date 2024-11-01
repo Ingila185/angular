@@ -14,7 +14,6 @@ import { HttpTransferCacheOptions } from '@angular/common/http';
 import * as i0 from '@angular/core';
 import * as i1 from '@angular/common';
 import { InjectionToken } from '@angular/core';
-import { ModuleWithProviders } from '@angular/core';
 import { NgZone } from '@angular/core';
 import { PlatformRef } from '@angular/core';
 import { Predicate } from '@angular/core';
@@ -34,10 +33,6 @@ export function bootstrapApplication(rootComponent: Type<unknown>, options?: App
 // @public
 export class BrowserModule {
     constructor(providersAlreadyPresent: boolean | null);
-    // @deprecated
-    static withServerTransition(params: {
-        appId: string;
-    }): ModuleWithProviders<BrowserModule>;
     // (undocumented)
     static ɵfac: i0.ɵɵFactoryDeclaration<BrowserModule, [{ optional: true; skipSelf: true; }]>;
     // (undocumented)
@@ -158,6 +153,8 @@ export enum HydrationFeatureKind {
     // (undocumented)
     I18nSupport = 2,
     // (undocumented)
+    IncrementalHydration = 4,
+    // (undocumented)
     NoHttpTransferCache = 0
 }
 
@@ -250,6 +247,9 @@ export function withHttpTransferCacheOptions(options: HttpTransferCacheOptions):
 
 // @public
 export function withI18nSupport(): HydrationFeature<HydrationFeatureKind.I18nSupport>;
+
+// @public
+export function withIncrementalHydration(): HydrationFeature<HydrationFeatureKind.IncrementalHydration>;
 
 // @public
 export function withNoHttpTransferCache(): HydrationFeature<HydrationFeatureKind.NoHttpTransferCache>;

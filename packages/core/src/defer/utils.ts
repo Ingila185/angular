@@ -6,6 +6,9 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
+import {Injector} from '../di';
+import {RuntimeError, RuntimeErrorCode} from '../errors';
+import {isIncrementalHydrationEnabled} from '../hydration/utils';
 import {assertIndexInDeclRange} from '../render3/assert';
 import {DependencyDef} from '../render3/interfaces/definition';
 import {TContainerNode, TNode} from '../render3/interfaces/node';
@@ -165,4 +168,32 @@ export function isTDeferBlockDetails(value: unknown): value is TDeferBlockDetail
     typeof value === 'object' &&
     typeof (value as TDeferBlockDetails).primaryTmplIndex === 'number'
   );
+}
+
+/**
+ * Whether a given TNode represents a defer block.
+ */
+export function isDeferBlock(tView: TView, tNode: TNode): boolean {
+  let tDetails: TDeferBlockDetails | null = null;
+  const slotIndex = getDeferBlockDataIndex(tNode.index);
+  // Check if a slot index is in the reasonable range.
+  // Note: we do `-1` on the right border, since defer block details are stored
+  // in the `n+1` slot, see `getDeferBlockDataIndex` for more info.
+  if (HEADER_OFFSET < slotIndex && slotIndex < tView.bindingStartIndex) {
+    tDetails = getTDeferBlockDetails(tView, tNode);
+  }
+  return !!tDetails && isTDeferBlockDetails(tDetails);
+}
+
+/** Throws an error if the incremental hydration is not enabled */
+export function assertIncrementalHydrationIsConfigured(injector: Injector) {
+  if (!isIncrementalHydrationEnabled(injector)) {
+    throw new RuntimeError(
+      RuntimeErrorCode.MISCONFIGURED_INCREMENTAL_HYDRATION,
+      'Angular has detected that some `@defer` blocks use `hydrate` triggers, ' +
+        'but incremental hydration was not enabled. Please ensure that the `withIncrementalHydration()` ' +
+        'call is added as an argument for the `provideClientHydration()` function call ' +
+        'in your application config.',
+    );
+  }
 }

@@ -12,6 +12,7 @@ import {SymbolKind, TemplateTypeChecker} from '@angular/compiler-cli/src/ngtsc/t
 import {
   AST,
   BindingType,
+  Conditional,
   ImplicitReceiver,
   LiteralMap,
   ParsedEventType,
@@ -81,6 +82,7 @@ export class TemplateReferenceVisitor<
     templateTypeChecker: TemplateTypeChecker,
     componentClass: ts.ClassDeclaration,
     knownFields: KnownFields<D>,
+    fieldNamesToConsiderForReferenceLookup: Set<string> | null,
   ) {
     super();
     this.expressionVisitor = new TemplateExpressionReferenceVisitor(
@@ -88,6 +90,7 @@ export class TemplateReferenceVisitor<
       templateTypeChecker,
       componentClass,
       knownFields,
+      fieldNamesToConsiderForReferenceLookup,
     );
   }
 
@@ -238,12 +241,14 @@ export class TemplateExpressionReferenceVisitor<
   private activeTmplAstNode: ExprContext | null = null;
   private detectedInputReferences: TmplInputExpressionReference<ExprContext, D>[] = [];
   private isInsideObjectShorthandExpression = false;
+  private insideConditionalExpressionsWithReads: AST[] = [];
 
   constructor(
     private typeChecker: ts.TypeChecker,
     private templateTypeChecker: TemplateTypeChecker | null,
     private componentClass: ts.ClassDeclaration,
     private knownFields: KnownFields<D>,
+    private fieldNamesToConsiderForReferenceLookup: Set<string> | null,
   ) {
     super();
   }
@@ -289,11 +294,26 @@ export class TemplateExpressionReferenceVisitor<
     super.visitPropertyWrite(ast, context);
   }
 
+  override visitConditional(ast: Conditional, context: AST[]) {
+    this.visit(ast.condition, context);
+    this.insideConditionalExpressionsWithReads.push(ast.condition);
+    this.visit(ast.trueExp, context);
+    this.visit(ast.falseExp, context);
+    this.insideConditionalExpressionsWithReads.pop();
+  }
+
   /**
    * Inspects the property access and attempts to resolve whether they access
    * a known field. If so, the result is captured.
    */
   private _inspectPropertyAccess(ast: PropertyRead | PropertyWrite, astPath: AST[]) {
+    if (
+      this.fieldNamesToConsiderForReferenceLookup !== null &&
+      !this.fieldNamesToConsiderForReferenceLookup.has(ast.name)
+    ) {
+      return;
+    }
+
     const isWrite = !!(
       ast instanceof PropertyWrite ||
       (this.activeTmplAstNode && isTwoWayBindingNode(this.activeTmplAstNode))
@@ -337,7 +357,7 @@ export class TemplateExpressionReferenceVisitor<
       read: ast,
       readAstPath: astPath,
       context: this.activeTmplAstNode!,
-      isLikelyNarrowed: false,
+      isLikelyNarrowed: this._isPartOfNarrowingTernary(ast),
       isObjectShorthandExpression: this.isInsideObjectShorthandExpression,
       isWrite,
     });
@@ -390,10 +410,22 @@ export class TemplateExpressionReferenceVisitor<
       read: ast,
       readAstPath: astPath,
       context: this.activeTmplAstNode!,
-      isLikelyNarrowed: false,
+      isLikelyNarrowed: this._isPartOfNarrowingTernary(ast),
       isObjectShorthandExpression: this.isInsideObjectShorthandExpression,
       isWrite,
     });
+  }
+
+  private _isPartOfNarrowingTernary(read: PropertyRead | PropertyWrite) {
+    // Note: We do not safe check that the reads are fully matching 1:1. This is acceptable
+    // as worst case we just skip an input from being migrated. This is very unlikely too.
+    return this.insideConditionalExpressionsWithReads.some(
+      (r): r is PropertyRead | PropertyWrite | SafePropertyRead =>
+        (r instanceof PropertyRead ||
+          r instanceof PropertyWrite ||
+          r instanceof SafePropertyRead) &&
+        r.name === read.name,
+    );
   }
 }
 

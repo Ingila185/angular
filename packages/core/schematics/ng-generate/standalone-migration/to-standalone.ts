@@ -125,7 +125,7 @@ export function convertNgModuleDeclarationToStandalone(
   const directiveMeta = typeChecker.getDirectiveMetadata(decl);
 
   if (directiveMeta && directiveMeta.decorator && !directiveMeta.isStandalone) {
-    let decorator = addStandaloneToDecorator(directiveMeta.decorator);
+    let decorator = markDecoratorAsStandalone(directiveMeta.decorator);
 
     if (directiveMeta.isComponent) {
       const importsToAdd = getComponentImportExpressions(
@@ -157,7 +157,7 @@ export function convertNgModuleDeclarationToStandalone(
     const pipeMeta = typeChecker.getPipeMetadata(decl);
 
     if (pipeMeta && pipeMeta.decorator && !pipeMeta.isStandalone) {
-      tracker.replaceNode(pipeMeta.decorator, addStandaloneToDecorator(pipeMeta.decorator));
+      tracker.replaceNode(pipeMeta.decorator, markDecoratorAsStandalone(pipeMeta.decorator));
     }
   }
 }
@@ -426,12 +426,35 @@ function moveDeclarationsToImports(
   );
 }
 
-/** Adds `standalone: true` to a decorator node. */
-function addStandaloneToDecorator(node: ts.Decorator): ts.Decorator {
-  return setPropertyOnAngularDecorator(
-    node,
-    'standalone',
-    ts.factory.createToken(ts.SyntaxKind.TrueKeyword),
+/** Sets a decorator node to be standalone. */
+function markDecoratorAsStandalone(node: ts.Decorator): ts.Decorator {
+  const metadata = extractMetadataLiteral(node);
+
+  if (metadata === null || !ts.isCallExpression(node.expression)) {
+    return node;
+  }
+
+  const standaloneProp = metadata.properties.find((prop) => {
+    return isNamedPropertyAssignment(prop) && prop.name.text === 'standalone';
+  }) as ts.PropertyAssignment | undefined;
+
+  // In v19 standalone is the default so don't do anything if there's no `standalone`
+  // property or it's initialized to anything other than `false`.
+  if (!standaloneProp || standaloneProp.initializer.kind !== ts.SyntaxKind.FalseKeyword) {
+    return node;
+  }
+
+  const newProperties = metadata.properties.filter((element) => element !== standaloneProp);
+
+  // Use `createDecorator` instead of `updateDecorator`, because
+  // the latter ends up duplicating the node's leading comment.
+  return ts.factory.createDecorator(
+    ts.factory.createCallExpression(node.expression.expression, node.expression.typeArguments, [
+      ts.factory.createObjectLiteralExpression(
+        ts.factory.createNodeArray(newProperties, metadata.properties.hasTrailingComma),
+        newProperties.length > 1,
+      ),
+    ]),
   );
 }
 
@@ -746,13 +769,13 @@ export function migrateTestDeclarations(
     const closestClass = closestNode(decorator.node, ts.isClassDeclaration);
 
     if (decorator.name === 'Pipe' || decorator.name === 'Directive') {
-      tracker.replaceNode(decorator.node, addStandaloneToDecorator(decorator.node));
+      tracker.replaceNode(decorator.node, markDecoratorAsStandalone(decorator.node));
 
       if (closestClass) {
         allDeclarations.add(closestClass);
       }
     } else if (decorator.name === 'Component') {
-      const newDecorator = addStandaloneToDecorator(decorator.node);
+      const newDecorator = markDecoratorAsStandalone(decorator.node);
       const importsToAdd = componentImports.get(decorator.node);
 
       if (closestClass) {

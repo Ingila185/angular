@@ -539,8 +539,6 @@ export class Identifiers {
     moduleName: CORE,
   };
 
-  static StandaloneFeature: o.ExternalReference = {name: 'ɵɵStandaloneFeature', moduleName: CORE};
-
   static ProvidersFeature: o.ExternalReference = {name: 'ɵɵProvidersFeature', moduleName: CORE};
 
   static HostDirectivesFeature: o.ExternalReference = {
@@ -550,6 +548,11 @@ export class Identifiers {
 
   static InputTransformsFeatureFeature: o.ExternalReference = {
     name: 'ɵɵInputTransformsFeature',
+    moduleName: CORE,
+  };
+
+  static ExternalStylesFeature: o.ExternalReference = {
+    name: 'ɵɵExternalStylesFeature',
     moduleName: CORE,
   };
 

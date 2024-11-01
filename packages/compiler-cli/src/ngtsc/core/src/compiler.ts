@@ -390,6 +390,8 @@ export class NgCompiler {
   private readonly enableBlockSyntax: boolean;
   private readonly enableLetSyntax: boolean;
   private readonly angularCoreVersion: string | null;
+  private readonly enableHmr: boolean;
+  private readonly implicitStandaloneValue: boolean;
 
   /**
    * `NgCompiler` can be reused for multiple compilations (for resource-only changes), and each
@@ -454,6 +456,7 @@ export class NgCompiler {
     readonly usePoisonedData: boolean,
     private livePerfRecorder: ActivePerfRecorder,
   ) {
+    this.angularCoreVersion = options['_angularCoreVersion'] ?? null;
     this.delegatingPerfRecorder = new DelegatingPerfRecorder(this.perfRecorder);
     this.usePoisonedData = usePoisonedData || !!options._compilePoisonedComponents;
     this.enableTemplateTypeChecker =
@@ -461,7 +464,13 @@ export class NgCompiler {
     // TODO(crisbeto): remove this flag and base `enableBlockSyntax` on the `angularCoreVersion`.
     this.enableBlockSyntax = options['_enableBlockSyntax'] ?? true;
     this.enableLetSyntax = options['_enableLetSyntax'] ?? true;
-    this.angularCoreVersion = options['_angularCoreVersion'] ?? null;
+    // Standalone by default is enabled since v19. We need to toggle it here,
+    // because the language service extension may be running with the latest
+    // version of the compiler against an older version of Angular.
+    this.implicitStandaloneValue =
+      this.angularCoreVersion === null ||
+      coreVersionSupportsFeature(this.angularCoreVersion, '>= 19.0.0-0');
+    this.enableHmr = !!options['_enableHmr'];
     this.constructionDiagnostics.push(
       ...this.adapter.constructionDiagnostics,
       ...verifyCompatibleTypeCheckOptions(this.options),
@@ -938,6 +947,34 @@ export class NgCompiler {
     compilation.traitCompiler.xi18n(ctx);
   }
 
+  /**
+   * Emits the JavaScript module that can be used to replace the metadata of a class during HMR.
+   * @param node Class for which to generate the update module.
+   */
+  emitHmrUpdateModule(node: DeclarationNode): string | null {
+    const {traitCompiler, reflector} = this.ensureAnalyzed();
+
+    if (!reflector.isClass(node)) {
+      return null;
+    }
+
+    const callback = traitCompiler.compileHmrUpdateCallback(node);
+
+    if (callback === null) {
+      return null;
+    }
+
+    const sourceFile = node.getSourceFile();
+    const printer = ts.createPrinter();
+    const nodeText = printer.printNode(ts.EmitHint.Unspecified, callback, sourceFile);
+
+    return ts.transpileModule(nodeText, {
+      compilerOptions: this.options,
+      fileName: sourceFile.fileName,
+      reportDiagnostics: false,
+    }).outputText;
+  }
+
   private ensureAnalyzed(this: NgCompiler): LazyCompilationState {
     if (this.compilation === null) {
       this.analyzeSync();
@@ -1392,6 +1429,7 @@ export class NgCompiler {
     const strictCtorDeps = this.options.strictInjectionParameters || false;
     const supportJitMode = this.options['supportJitMode'] ?? true;
     const supportTestBed = this.options['supportTestBed'] ?? true;
+    const externalRuntimeStyles = this.options['externalRuntimeStyles'] ?? false;
 
     // Libraries compiled in partial mode could potentially be used with TestBed within an
     // application. Since this is not known at library compilation time, support is required to
@@ -1426,7 +1464,7 @@ export class NgCompiler {
         metaRegistry,
         metaReader,
         scopeReader,
-        depScopeReader,
+        this.adapter,
         ngModuleScopeRegistry,
         typeCheckScopeRegistry,
         resourceRegistry,
@@ -1457,10 +1495,13 @@ export class NgCompiler {
         !!this.options.forbidOrphanComponents,
         this.enableBlockSyntax,
         this.enableLetSyntax,
+        externalRuntimeStyles,
         localCompilationExtraImportsTracker,
         jitDeclarationRegistry,
         this.options.i18nPreserveWhitespaceForLegacyExtraction ?? true,
         !!this.options.strictStandalone,
+        this.enableHmr,
+        this.implicitStandaloneValue,
       ),
 
       // TODO(alxhub): understand why the cast here is necessary (something to do with `null`
@@ -1484,6 +1525,7 @@ export class NgCompiler {
         compilationMode,
         jitDeclarationRegistry,
         !!this.options.strictStandalone,
+        this.implicitStandaloneValue,
       ) as Readonly<DecoratorHandler<unknown, unknown, SemanticSymbol | null, unknown>>,
       // Pipe handler must be before injectable handler in list so pipe factories are printed
       // before injectable factories (so injectable factories can delegate to them)
@@ -1499,6 +1541,7 @@ export class NgCompiler {
         compilationMode,
         !!this.options.generateExtraImportsInLocalMode,
         !!this.options.strictStandalone,
+        this.implicitStandaloneValue,
       ),
       new InjectableDecoratorHandler(
         reflector,

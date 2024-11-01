@@ -7,6 +7,7 @@
  */
 
 import '../util/ng_jit_mode';
+import '../util/ng_server_mode';
 
 import {
   setActiveConsumer,
@@ -33,11 +34,11 @@ import {PendingTasksInternal} from '../pending_tasks';
 import {RendererFactory2} from '../render/api';
 import {AfterRenderManager} from '../render3/after_render/manager';
 import {ComponentFactory as R3ComponentFactory} from '../render3/component_ref';
-import {isStandalone} from '../render3/definition';
+import {isStandalone} from '../render3/def_getters';
 import {ChangeDetectionMode, detectChangesInternal} from '../render3/instructions/change_detection';
-import {FLAGS, LView, LViewFlags} from '../render3/interfaces/view';
+import {LView} from '../render3/interfaces/view';
 import {publishDefaultGlobalUtils as _publishDefaultGlobalUtils} from '../render3/util/global_utils';
-import {removeLViewOnDestroy, requiresRefreshOrTraversal} from '../render3/util/view_utils';
+import {requiresRefreshOrTraversal} from '../render3/util/view_utils';
 import {ViewRef as InternalViewRef} from '../render3/view_ref';
 import {TESTABILITY} from '../testability/testability';
 import {isPromise} from '../util/lang';
@@ -71,9 +72,7 @@ export function publishSignalConfiguration(): void {
   setThrowInvalidWriteToSignalError(() => {
     throw new RuntimeError(
       RuntimeErrorCode.SIGNAL_WRITE_FROM_ILLEGAL_CONTEXT,
-      ngDevMode &&
-        'Writing to signals is not allowed in a `computed` or an `effect` by default. ' +
-          'Use `allowSignalWrites` in the `CreateEffectOptions` to enable this inside effects.',
+      ngDevMode && 'Writing to signals is not allowed in a `computed`.',
     );
   });
 }

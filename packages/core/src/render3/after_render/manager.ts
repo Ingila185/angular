@@ -25,21 +25,22 @@ export class AfterRenderManager {
   }
 
   /** @nocollapse */
-  static ɵprov = /** @pureOrBreakMyCode */ ɵɵdefineInjectable({
+  static ɵprov = /** @pureOrBreakMyCode */ /* @__PURE__ */ ɵɵdefineInjectable({
     token: AfterRenderManager,
     providedIn: 'root',
     factory: () => new AfterRenderManager(),
   });
 }
 
-export class AfterRenderImpl {
-  static readonly PHASES = [
+export const AFTER_RENDER_PHASES = /* @__PURE__ **/ (() =>
+  [
     AfterRenderPhase.EarlyRead,
     AfterRenderPhase.Write,
     AfterRenderPhase.MixedReadWrite,
     AfterRenderPhase.Read,
-  ] as const;
+  ] as const)();
 
+export class AfterRenderImpl {
   private readonly ngZone = inject(NgZone);
   private readonly scheduler = inject(ChangeDetectionScheduler);
   private readonly errorHandler = inject(ErrorHandler, {optional: true});
@@ -59,7 +60,7 @@ export class AfterRenderImpl {
    */
   execute(): void {
     this.executing = true;
-    for (const phase of AfterRenderImpl.PHASES) {
+    for (const phase of AFTER_RENDER_PHASES) {
       for (const sequence of this.sequences) {
         if (sequence.erroredOrDestroyed || !sequence.hooks[phase]) {
           continue;
@@ -82,6 +83,9 @@ export class AfterRenderImpl {
       sequence.afterRun();
       if (sequence.once) {
         this.sequences.delete(sequence);
+        // Destroy the sequence so its on destroy callbacks can be cleaned up
+        // immediately, instead of waiting until the injector is destroyed.
+        sequence.destroy();
       }
     }
 
@@ -121,7 +125,7 @@ export class AfterRenderImpl {
   }
 
   /** @nocollapse */
-  static ɵprov = /** @pureOrBreakMyCode */ ɵɵdefineInjectable({
+  static ɵprov = /** @pureOrBreakMyCode */ /* @__PURE__ */ ɵɵdefineInjectable({
     token: AfterRenderImpl,
     providedIn: 'root',
     factory: () => new AfterRenderImpl(),

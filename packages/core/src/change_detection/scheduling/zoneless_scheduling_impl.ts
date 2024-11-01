@@ -155,6 +155,20 @@ export class ChangeDetectionSchedulerImpl implements ChangeDetectionScheduler {
       }
       case NotificationSource.RootEffect: {
         this.appRef.dirtyFlags |= ApplicationRefDirtyFlags.RootEffects;
+        // Root effects still force a CD, even if the scheduler is disabled. This ensures that
+        // effects always run, even when triggered from outside the zone when the scheduler is
+        // otherwise disabled.
+        force = true;
+        break;
+      }
+      case NotificationSource.ViewEffect: {
+        // This is technically a no-op, since view effects will also send a
+        // `MarkAncestorsForTraversal` notification. Still, we set this for logical consistency.
+        this.appRef.dirtyFlags |= ApplicationRefDirtyFlags.ViewTreeTraversal;
+        // View effects still force a CD, even if the scheduler is disabled. This ensures that
+        // effects always run, even when triggered from outside the zone when the scheduler is
+        // otherwise disabled.
+        force = true;
         break;
       }
       case NotificationSource.PendingTaskRemoved: {
@@ -205,7 +219,7 @@ export class ChangeDetectionSchedulerImpl implements ChangeDetectionScheduler {
   }
 
   private shouldScheduleTick(force: boolean): boolean {
-    if (this.disableScheduling && !force) {
+    if ((this.disableScheduling && !force) || this.appRef.destroyed) {
       return false;
     }
     // already scheduled or running

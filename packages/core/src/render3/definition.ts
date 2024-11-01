@@ -7,17 +7,18 @@
  */
 
 import {ChangeDetectionStrategy} from '../change_detection/constants';
+import {EnvironmentInjector} from '../di/r3_injector';
 import {formatRuntimeError, RuntimeErrorCode} from '../errors';
-import {Mutable, Type} from '../interface/type';
+import {Type, Writable} from '../interface/type';
 import {NgModuleDef} from '../metadata/ng_module_def';
 import {SchemaMetadata} from '../metadata/schema';
 import {ViewEncapsulation} from '../metadata/view';
 import {noSideEffects} from '../util/closure';
 import {EMPTY_ARRAY, EMPTY_OBJ} from '../util/empty';
 import {initNgDevMode} from '../util/ng_dev_mode';
-import {stringify} from '../util/stringify';
+import {performanceMarkFeature} from '../util/performance';
+import {getComponentDef, getDirectiveDef, getPipeDef} from './def_getters';
 
-import {NG_COMP_DEF, NG_DIR_DEF, NG_MOD_DEF, NG_PIPE_DEF} from './fields';
 import type {
   ComponentDef,
   ComponentDefFeature,
@@ -38,6 +39,8 @@ import {InputFlags} from './interfaces/input_flags';
 import type {TAttributes, TConstantsOrFactory} from './interfaces/node';
 import {CssSelectorList} from './interfaces/projection';
 import {stringifyCSSSelectorList} from './node_selector_matcher';
+import {NG_STANDALONE_DEFAULT_VALUE} from './standalone-default-value';
+import {StandaloneService} from './standalone_service';
 
 /**
  * Map of inputs for a given directive/component.
@@ -338,14 +341,14 @@ interface ComponentDefinition<T> extends Omit<DirectiveDefinition<T>, 'features'
  */
 export function ɵɵdefineComponent<T>(
   componentDefinition: ComponentDefinition<T>,
-): Mutable<ComponentDef<any>, keyof ComponentDef<any>> {
+): ComponentDef<any> {
   return noSideEffects(() => {
     // Initialize ngDevMode. This must be the first statement in ɵɵdefineComponent.
     // See the `initNgDevMode` docstring for more information.
     (typeof ngDevMode === 'undefined' || ngDevMode) && initNgDevMode();
 
     const baseDef = getNgDirectiveDef(componentDefinition as DirectiveDefinition<T>);
-    const def: Mutable<ComponentDef<T>, keyof ComponentDef<T>> = {
+    const def: Writable<ComponentDef<T>> = {
       ...baseDef,
       decls: componentDefinition.decls,
       vars: componentDefinition.vars,
@@ -356,7 +359,11 @@ export function ɵɵdefineComponent<T>(
       directiveDefs: null!, // assigned in noSideEffects
       pipeDefs: null!, // assigned in noSideEffects
       dependencies: (baseDef.standalone && componentDefinition.dependencies) || null,
-      getStandaloneInjector: null,
+      getStandaloneInjector: baseDef.standalone
+        ? (parentInjector: EnvironmentInjector) => {
+            return parentInjector.get(StandaloneService).getOrCreateStandaloneInjector(def);
+          }
+        : null,
       getExternalStyles: null,
       signals: componentDefinition.signals ?? false,
       data: componentDefinition.data || {},
@@ -367,6 +374,11 @@ export function ɵɵdefineComponent<T>(
       tView: null,
       id: '',
     };
+
+    // TODO: Do we still need/want this ?
+    if (baseDef.standalone) {
+      performanceMarkFeature('NgStandalone');
+    }
 
     initFeatures(def);
     const dependencies = componentDefinition.dependencies;
@@ -558,7 +570,7 @@ function parseAndConvertBindingsForDefinition<T>(
  */
 export function ɵɵdefineDirective<T>(
   directiveDefinition: DirectiveDefinition<T>,
-): Mutable<DirectiveDef<any>, keyof DirectiveDef<any>> {
+): DirectiveDef<any> {
   return noSideEffects(() => {
     const def = getNgDirectiveDef(directiveDefinition);
     initFeatures(def);
@@ -603,55 +615,12 @@ export function ɵɵdefinePipe<T>(pipeDef: {
     name: pipeDef.name,
     factory: null,
     pure: pipeDef.pure !== false,
-    standalone: pipeDef.standalone === true,
+    standalone: pipeDef.standalone ?? NG_STANDALONE_DEFAULT_VALUE,
     onDestroy: pipeDef.type.prototype.ngOnDestroy || null,
   };
 }
 
-/**
- * The following getter methods retrieve the definition from the type. Currently the retrieval
- * honors inheritance, but in the future we may change the rule to require that definitions are
- * explicit. This would require some sort of migration strategy.
- */
-
-export function getComponentDef<T>(type: any): ComponentDef<T> | null {
-  return type[NG_COMP_DEF] || null;
-}
-
-export function getDirectiveDef<T>(type: any): DirectiveDef<T> | null {
-  return type[NG_DIR_DEF] || null;
-}
-
-export function getPipeDef<T>(type: any): PipeDef<T> | null {
-  return type[NG_PIPE_DEF] || null;
-}
-
-/**
- * Checks whether a given Component, Directive or Pipe is marked as standalone.
- * This will return false if passed anything other than a Component, Directive, or Pipe class
- * See [this guide](guide/components/importing) for additional information:
- *
- * @param type A reference to a Component, Directive or Pipe.
- * @publicApi
- */
-export function isStandalone(type: Type<unknown>): boolean {
-  const def = getComponentDef(type) || getDirectiveDef(type) || getPipeDef(type);
-  return def !== null ? def.standalone : false;
-}
-
-export function getNgModuleDef<T>(type: any, throwNotFound: true): NgModuleDef<T>;
-export function getNgModuleDef<T>(type: any): NgModuleDef<T> | null;
-export function getNgModuleDef<T>(type: any, throwNotFound?: boolean): NgModuleDef<T> | null {
-  const ngModuleDef = type[NG_MOD_DEF] || null;
-  if (!ngModuleDef && throwNotFound === true) {
-    throw new Error(`Type ${stringify(type)} does not have 'ɵmod' property.`);
-  }
-  return ngModuleDef;
-}
-
-function getNgDirectiveDef<T>(
-  directiveDefinition: DirectiveDefinition<T>,
-): Mutable<DirectiveDef<T>, keyof DirectiveDef<T>> {
+function getNgDirectiveDef<T>(directiveDefinition: DirectiveDefinition<T>): DirectiveDef<T> {
   const declaredInputs: Record<string, string> = {};
 
   return {
@@ -666,7 +635,7 @@ function getNgDirectiveDef<T>(
     inputTransforms: null,
     inputConfig: directiveDefinition.inputs || EMPTY_OBJ,
     exportAs: directiveDefinition.exportAs || null,
-    standalone: directiveDefinition.standalone === true,
+    standalone: directiveDefinition.standalone ?? NG_STANDALONE_DEFAULT_VALUE,
     signals: directiveDefinition.signals === true,
     selectors: directiveDefinition.selectors || EMPTY_ARRAY,
     viewQuery: directiveDefinition.viewQuery || null,
@@ -680,11 +649,7 @@ function getNgDirectiveDef<T>(
   };
 }
 
-function initFeatures<T>(
-  definition:
-    | Mutable<DirectiveDef<T>, keyof DirectiveDef<T>>
-    | Mutable<ComponentDef<T>, keyof ComponentDef<T>>,
-): void {
+function initFeatures<T>(definition: DirectiveDef<T> | ComponentDef<T>): void {
   definition.features?.forEach((fn) => fn(definition));
 }
 

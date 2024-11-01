@@ -83,6 +83,8 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     LOOP_TRACK_RECREATE = -956,
     // (undocumented)
+    MISCONFIGURED_INCREMENTAL_HYDRATION = 508,
+    // (undocumented)
     MISSING_DOCUMENT = 210,
     // (undocumented)
     MISSING_GENERATED_DEF = 906,
@@ -135,9 +137,9 @@ export const enum RuntimeErrorCode {
     // (undocumented)
     REQUIRED_QUERY_NO_VALUE = -951,
     // (undocumented)
-    RUNTIME_DEPS_INVALID_IMPORTED_TYPE = 1000,
+    RUNTIME_DEPS_INVALID_IMPORTED_TYPE = 980,
     // (undocumented)
-    RUNTIME_DEPS_ORPHAN_COMPONENT = 1001,
+    RUNTIME_DEPS_ORPHAN_COMPONENT = 981,
     // (undocumented)
     SIGNAL_WRITE_FROM_ILLEGAL_CONTEXT = 600,
     // (undocumented)

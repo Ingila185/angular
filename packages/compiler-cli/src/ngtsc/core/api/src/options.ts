@@ -97,12 +97,29 @@ export interface InternalOptions {
   _enableLetSyntax?: boolean;
 
   /**
+   * Enables the use of `<link>` elements for component styleUrls instead of inlining the file
+   * content.
+   * This option is intended to be used with a development server that processes and serves
+   * the files on-demand for an application.
+   *
+   * @internal
+   */
+  externalRuntimeStyles?: boolean;
+
+  /**
    * Detected version of `@angular/core` in the workspace. Used by the
    * compiler to adjust the output depending on the available symbols.
    *
    * @internal
    */
   _angularCoreVersion?: string;
+
+  /**
+   * Whether to enable the necessary code generation for hot module reloading.
+   *
+   * @internal
+   */
+  _enableHmr?: boolean;
 }
 
 /**

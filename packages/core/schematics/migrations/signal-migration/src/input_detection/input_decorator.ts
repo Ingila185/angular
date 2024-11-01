@@ -14,6 +14,7 @@ import {FatalDiagnosticError} from '@angular/compiler-cli/src/ngtsc/diagnostics'
 import {Reference, ReferenceEmitter} from '@angular/compiler-cli/src/ngtsc/imports';
 import {
   DecoratorInputTransform,
+  DirectiveMeta,
   DtsMetadataReader,
   InputMapping,
 } from '@angular/compiler-cli/src/ngtsc/metadata';
@@ -35,6 +36,7 @@ import {InputNode, isInputContainerNode} from '../input_detection/input_node';
 export interface ExtractedInput extends InputMapping {
   inSourceFile: boolean;
   inputDecorator: Decorator | null;
+  fieldDecorators: Decorator[];
 }
 
 /** Attempts to extract metadata of a potential TypeScript `@Input()` declaration. */
@@ -73,9 +75,20 @@ function extractDtsInput(node: ts.Node, metadataReader: DtsMetadataReader): Extr
     return null;
   }
 
-  const directiveMetadata = metadataReader.getDirectiveMetadata(
-    new Reference(node.parent as ClassDeclaration),
-  );
+  let directiveMetadata: DirectiveMeta | null = null;
+
+  // Getting directive metadata can throw errors when e.g. types referenced
+  // in the `.d.ts` aren't resolvable. This seems to be unexpected and shouldn't
+  // result in the entire migration to be failing.
+  try {
+    directiveMetadata = metadataReader.getDirectiveMetadata(
+      new Reference(node.parent as ClassDeclaration),
+    );
+  } catch (e) {
+    console.error('Unexpected error. Gracefully ignoring.');
+    console.error('Could not parse directive metadata:', e);
+    return null;
+  }
   const inputMapping = directiveMetadata?.inputs.getByClassPropertyName(node.name.text);
 
   // Signal inputs are never tracked and migrated.
@@ -89,6 +102,8 @@ function extractDtsInput(node: ts.Node, metadataReader: DtsMetadataReader): Extr
         ...inputMapping,
         inputDecorator: null,
         inSourceFile: false,
+        // Inputs from `.d.ts` cannot have any field decorators applied.
+        fieldDecorators: [],
       };
 }
 
@@ -153,6 +168,7 @@ function extractSourceCodeInput(
     inSourceFile: true,
     transform: transformResult,
     inputDecorator,
+    fieldDecorators: decorators,
   };
 }
 

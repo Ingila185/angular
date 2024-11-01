@@ -957,14 +957,15 @@ export class ConditionalExpr extends Expression {
 
 export class DynamicImportExpr extends Expression {
   constructor(
-    public url: string,
+    public url: string | Expression,
     sourceSpan?: ParseSourceSpan | null,
+    public urlComment?: string,
   ) {
     super(null, sourceSpan);
   }
 
   override isEquivalent(e: Expression): boolean {
-    return e instanceof DynamicImportExpr && this.url === e.url;
+    return e instanceof DynamicImportExpr && this.url === e.url && this.urlComment === e.urlComment;
   }
 
   override isConstant() {
@@ -976,7 +977,11 @@ export class DynamicImportExpr extends Expression {
   }
 
   override clone(): DynamicImportExpr {
-    return new DynamicImportExpr(this.url, this.sourceSpan);
+    return new DynamicImportExpr(
+      typeof this.url === 'string' ? this.url : this.url.clone(),
+      this.sourceSpan,
+      this.urlComment,
+    );
   }
 }
 
@@ -1671,7 +1676,9 @@ export class RecursiveAstVisitor implements StatementVisitor, ExpressionVisitor 
     if (Array.isArray(ast.body)) {
       this.visitAllStatements(ast.body, context);
     } else {
-      this.visitExpression(ast.body, context);
+      // Note: `body.visitExpression`, rather than `this.visitExpressiont(body)`,
+      // because the latter won't recurse into the sub-expressions.
+      ast.body.visitExpression(this, context);
     }
 
     return this.visitExpression(ast, context);

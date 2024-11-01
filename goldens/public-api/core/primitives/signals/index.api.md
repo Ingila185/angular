@@ -55,6 +55,9 @@ export function producerAccessed(node: ReactiveNode): void;
 // @public
 export function producerIncrementEpoch(): void;
 
+// @public (undocumented)
+export function producerMarkClean(node: ReactiveNode): void;
+
 // @public
 export function producerNotifyConsumers(node: ReactiveNode): void;
 
@@ -81,6 +84,7 @@ export interface ReactiveNode {
     // (undocumented)
     consumerMarkedDirty(node: unknown): void;
     consumerOnSignalRead(node: unknown): void;
+    debugName?: string;
     dirty: boolean;
     lastCleanEpoch: Version;
     liveConsumerIndexOfThis: number[] | undefined;

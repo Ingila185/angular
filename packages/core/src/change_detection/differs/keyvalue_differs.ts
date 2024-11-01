@@ -123,16 +123,13 @@ export function defaultKeyValueDiffersFactory() {
  */
 export class KeyValueDiffers {
   /** @nocollapse */
-  static ɵprov = /** @pureOrBreakMyCode */ ɵɵdefineInjectable({
+  static ɵprov = /** @pureOrBreakMyCode */ /* @__PURE__ */ ɵɵdefineInjectable({
     token: KeyValueDiffers,
     providedIn: 'root',
     factory: defaultKeyValueDiffersFactory,
   });
 
-  /**
-   * @deprecated v4.0.0 - Should be private.
-   */
-  factories: KeyValueDifferFactory[];
+  private readonly factories: KeyValueDifferFactory[];
 
   constructor(factories: KeyValueDifferFactory[]) {
     this.factories = factories;
