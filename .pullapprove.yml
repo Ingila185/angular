@@ -300,6 +300,7 @@ groups:
       - >
         contains_any_globs(files, [
           'packages/platform-server/**/{*,.*}',
+          'packages/ssr/**/{*,.*}',
           ])
     reviewers:
       users:
@@ -684,6 +685,8 @@ groups:
     conditions:
       - author in ["angular-robot"]
     reviewers:
+      users:
+        - ~alan-agius4
       teams:
         - framework-team
 

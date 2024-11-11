@@ -20,8 +20,8 @@ import {
   TsurgeFunnelMigration,
 } from '../../utils/tsurge';
 
-import {DtsMetadataReader} from '../../../../compiler-cli/src/ngtsc/metadata';
-import {TypeScriptReflectionHost} from '../../../../compiler-cli/src/ngtsc/reflection';
+import {DtsMetadataReader} from '@angular/compiler-cli/src/ngtsc/metadata';
+import {TypeScriptReflectionHost} from '@angular/compiler-cli/src/ngtsc/reflection';
 import {PartialEvaluator} from '@angular/compiler-cli/private/migrations';
 import {
   getUniqueIdForProperty,
@@ -101,11 +101,14 @@ export class OutputMigration extends TsurgeFunnelMigration<
     const reflector = new TypeScriptReflectionHost(checker);
     const dtsReader = new DtsMetadataReader(checker, reflector);
     const evaluator = new PartialEvaluator(reflector, checker, null);
-    const ngCompiler = info.ngCompiler;
-    assert(ngCompiler !== null, 'Requires ngCompiler to run the migration');
-    const resourceLoader = ngCompiler['resourceManager'];
-    // Pre-Analyze the program and get access to the template type checker.
-    const {templateTypeChecker} = ngCompiler['ensureAnalyzed']();
+    const resourceLoader = info.ngCompiler?.['resourceManager'] ?? null;
+
+    // Pre-analyze the program and get access to the template type checker.
+    // If we are processing a non-Angular target, there is no template info.
+    const {templateTypeChecker} = info.ngCompiler?.['ensureAnalyzed']() ?? {
+      templateTypeChecker: null,
+    };
+
     const knownFields: KnownFields<ClassFieldDescriptor> = {
       // Note: We don't support cross-target migration of `Partial<T>` usages.
       // This is an acceptable limitation for performance reasons.
